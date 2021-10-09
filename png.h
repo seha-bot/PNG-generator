@@ -86,7 +86,7 @@ void rgb_to_png(const char* filename, unsigned char* rgb, int width, int height)
     int pixelWidth = width * 3;
     int pixelLength = pixelWidth * height;
     int dataLength = (6/*6 is for 0size0*/ + pixelWidth) * height;
-    char IDAT[18/*InitialData*/ + dataLength];
+    char* IDAT = (char*)calloc(18/*InitialData*/ + dataLength, 1);
     inverse_copy32(IDAT, dataLength + 2/*header*/ + 4/*adler*/, 0); //Data Length parameter
     IDAT[4] = 73; //I
     IDAT[5] = 68; //D
@@ -102,7 +102,7 @@ void rgb_to_png(const char* filename, unsigned char* rgb, int width, int height)
         (~(pixelWidth + 1) >> 8) & 0xFF
     };
 
-    unsigned char adlerRGB[pixelLength + height];
+    char* adlerRGB = (char*)calloc(pixelLength + height, 1);
     int pos = 10, offset = 0;
     for(int y = 0; y < height; y++)
     {
@@ -135,9 +135,9 @@ void rgb_to_png(const char* filename, unsigned char* rgb, int width, int height)
         }
     }
 
-    unsigned long adl = adler32(adlerRGB, pixelLength + height);
-    inverse_copy32(IDAT, adl, sizeof(IDAT) - 8);
-    crc(IDAT, sizeof(IDAT));
+    unsigned long adl = adler32(adlerRGB, pixelLength + height); free(adlerRGB);
+    inverse_copy32(IDAT, adl, 18+dataLength - 8);
+    crc(IDAT, 18+dataLength);
 
 
     char IEND[] = {
@@ -149,7 +149,8 @@ void rgb_to_png(const char* filename, unsigned char* rgb, int width, int height)
     FILE *file = fopen(filename, "wb");
     fwrite(header, sizeof(header), 1, file);
     fwrite(IHDR, sizeof(IHDR), 1, file);
-    fwrite(IDAT, sizeof(IDAT), 1, file);
+    fwrite(IDAT, 18+dataLength, 1, file);
     fwrite(IEND, sizeof(IEND), 1, file);
     fclose(file);
+    free(IDAT);
 }
